@@ -1,10 +1,10 @@
 临时版：
 没写：
-登陆验证..
 共享内存..
 断点续传..
+列出当前用户名
+删除指定用户
 
 生成命令：
-gcc -c main.c
-gcc -o myftp main.o -lpthread
+gcc main.c v_check_username.c -o myftp -lpthread -lcrypt
 ./myftp
