@@ -4,6 +4,7 @@
 
 #ifndef LINUX_SERVER_CONTROL_H
 #define LINUX_SERVER_CONTROL_H
+
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -26,7 +27,7 @@ static int countt_history = 0;
 
 void quit();
 
-void kill_someone(char * c);
+void kill_someone();
 
 void list_name_now();
 

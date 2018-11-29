@@ -14,6 +14,7 @@
 #include <fcntl.h>
 #include "server_control.h"
 #include "v_check_username.h"
+#include "link_list.h"
 
 
 #pragma mark                                                                        状态码
@@ -44,8 +45,8 @@
 #pragma mark                                                                        协议 头
 typedef struct NYN {
     int status;                         //状态码s         // 1-----登录//002-----上传//010-----下载//011-----创建dir
-                                        //100-----删除dir//  101-----显示当前路径    //110-----切换目录
-                                        //111-----查看当前所有文件
+    // 100-----删除dir//  101-----显示当前路径    //110-----切换目录
+    // 111-----查看当前所有文件
     int mode;                           //上传下载选定模式//1-----ansic              //2-----bit  //3-----非上传下载
 } CW;
 typedef struct MCM {                    //s为1时选用
@@ -78,36 +79,6 @@ typedef struct NLM {
  *  PurPose: FTP-Sever                                             *
  *                                                                 *
  \******************************************************************/
-#pragma mark quit()                                                                 退出                                 //Done
-
-void quit() {
-    system("clear");
-    exit(0);
-}
-
-#pragma mark kill_someone()                                                         与某个用户断 连
-
-void kill_someone(char *c) {
-    //处理字符串
-}
-
-#pragma mark list_name_now()                                                        当前 在线用户名
-
-void list_name_now() {
-    //for处理
-}
-
-#pragma mark - count_history()                                                      总 访问数                             //Done
-
-void count_history() {
-    printf("Historical number of vistors:%i\n", countt_history);
-}
-
-#pragma mark - count()                                                              获取 当前人数                          //Done
-
-void count() {
-    printf("Number of active user:%i\n", countt);
-}
 
 #pragma mark - init_socket()                                                        初始化 套接字-返回 监听套接字            //Done
 
@@ -152,22 +123,30 @@ int MyAccept(int listen_socket) {                       //返回套接字状态
     return client_socket;
 }
 
-#pragma mark - Login()                                                              登录-校验
+#pragma mark - Login()                                                              登录-校验                             //Done
 
 void Login(int client_socket, struct NLM *nlm) {
     countt++;
     struct NLM tt;
     bzero(&tt, sizeof(BZ));
 
-    if (0==v_check_n_p(nlm->_m.username,nlm->_m.password)){
-        tt._n.mode=999;
-       if (write(client_socket,&tt, sizeof(tt))<0){
-           perror("wirte error");
-           return;
-       }
-    } else{
-        tt._n.mode=777;
-        if (write(client_socket,&tt, sizeof(tt))<0){
+    if (NULL == head.next) {
+        if (0 != create_list(&head, client_socket))//need to fix
+            return;
+    } else {
+        if (0 != append_ele(&head, client_socket))
+            return;
+    }
+
+    if (0 == v_check_n_p(nlm->_m.username, nlm->_m.password)) {
+        tt._n.mode = 999;
+        if (write(client_socket, &tt, sizeof(tt)) < 0) {
+            perror("wirte error");
+            return;
+        }
+    } else {
+        tt._n.mode = 777;
+        if (write(client_socket, &tt, sizeof(tt)) < 0) {
             perror("wirte error");
             return;
         }
@@ -206,7 +185,8 @@ void Upload(int client_socket, struct NLM *nlm) {
             }
         }
     } else if (BIT == nlm->_n.mode) {
-        if ((fd = fopen(nlm->_b.content, "rb")) < 0) {                                                                  //ACSII---error
+        if ((fd = fopen(nlm->_b.content, "rb")) <
+            0) {                                                                  //ACSII---error
             printf("Open file Error!\n");
             strcpy(tt._b.content, a);
             if (write(client_socket, &tt, sizeof(tt)) < 0) {
@@ -277,7 +257,7 @@ void Download(int client_socket, struct NLM *nlm) {
 
 }
 
-#pragma mark - Mkdir()                                                              创建 DIR
+#pragma mark - Mkdir()                                                              创建 DIR                             //Done
 
 void Mkdir(int client_socket, struct NLM *nlm) {
     const char *b = "ok!";
@@ -312,7 +292,7 @@ void Mkdir(int client_socket, struct NLM *nlm) {
     }
 }
 
-#pragma remove_dir()                                                                shanchudir                          //Done
+#pragma remove_dir()                                                                删除DIR                              //Done
 
 int remove_dir(const char *dir) {
     char cur_dir[] = ".";
@@ -375,11 +355,11 @@ void Pwd(int client_socket, struct NLM *nlm) {
 
     if (NULL == getcwd(tt._b.content, MMAX)) {
         perror("Get cerrent working directory fail.\n");
-        return ;
+        return;
     }
     tt._n.status = PWD;
     write(client_socket, &tt, sizeof(tt));
-    return ;
+    return;
 }
 
 #pragma mark - Ls()                                                                 显示 当前文件夹                        //Done
@@ -440,6 +420,8 @@ void Cd(int client_socket, struct NLM *nlm) {
 void Bye(int client_socket, struct NLM *nlm) {
     if (88 == nlm->_n.status) {
         countt--;
+        del_ele(&head, client_socket);
+        close(client_socket);
     }
 }
 
@@ -480,6 +462,7 @@ void *Handle_Thread(void *pVoid) {
                 Cd(client_socket, &tmp);
                 break;
             case BYE:
+                Bye(client_socket, &tmp);
                 break;
             default:
                 break;
@@ -519,35 +502,72 @@ void *Handle_Myserver() {
 
 int main(int argc, char **argv) {
     pthread_t listen;                                                                                                   //用于监听线程与主线程通信
-    pthread_create(&listen, NULL, Handle_Myserver, NULL);                                                               //服务端命令行监听线程
+    pthread_create(&listen, NULL, Handle_Myserver,
+                   NULL);                                                               //服务端命令行监听线程
     pthread_detach(listen);
     printf("主线程");
     int listen_socket = init_socket();//初始化
-    printf("%i",listen_socket);
+    printf("%i", listen_socket);
     while (1) {
         //sleep(1000);
         int client_socket = MyAccept(listen_socket);//获取客户端套接字
         //创建线程处理连接
         pthread_t id;
         pthread_create(&id, NULL, Handle_Thread, (void *) (long) client_socket);
-        pthread_detach(id);                                                                                             //线程分离
+        pthread_detach(
+                id);                                                                                             //线程分离
     }
     close(listen_socket);
     printf("Bye--");
     return 0;
 }
-
-//    wchar_t a[] = L"叶长青你妈死了";
-//    wchar_t b[] = L"欢迎";
-//    setlocale(LC_ALL, "zh_CN.UTF-8");
-//    if (
-//            argv[1][0] != 'f' || \
-//            argv[1][1] != 't' || \
-//            argv[1][2] != 'p' || \
-//            argv[1][3] != '/' || \
-//            argv[1][4] != '/') {
-//        wprintf(L"%ls ", a);
-//        return -1;
-//    }
-//    wprintf(L"%ls ", b);
-//    init_sema();
+/*
+    wchar_t a[] = L"叶长青你妈死了";
+    wchar_t b[] = L"欢迎";
+    setlocale(LC_ALL, "zh_CN.UTF-8");
+    if (
+            argv[1][0] != 'f' || \
+            argv[1][1] != 't' || \
+            argv[1][2] != 'p' || \
+            argv[1][3] != '/' || \
+            argv[1][4] != '/') {
+        wprintf(L"%ls ", a);
+        return -1;
+    }
+    wprintf(L"%ls ", b);
+    init_sema();
+*/
+/*
+//  *
+//#pragma mark quit()                                                                 退出                                 //Done
+//
+//void quit() {
+//    system("clear");
+//    exit(0);
+//}
+//
+//#pragma mark kill_someone()                                                         与某个用户断 连
+//
+//void kill_someone(char *c) {
+//    //处理字符串
+//}
+//
+//#pragma mark list_name_now()                                                        当前 在线用户名
+//
+//void list_name_now() {
+//
+//    //for处理
+//}
+//
+//#pragma mark - count_history()                                                      总 访问数                             //Done
+//
+//void count_history() {
+//    printf("Historical number of vistors:%i\n", countt_history);
+//}
+//
+//#pragma mark - count()                                                              获取 当前人数                          //Done
+//
+//void count() {
+//    printf("Number of active user:%i\n", countt);
+//}
+//*/
