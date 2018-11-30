@@ -422,6 +422,7 @@ void Bye(int client_socket, struct NLM *nlm) {
         countt--;
         del_ele(&head, client_socket);
         close(client_socket);
+        pthread_exit(0);
     }
 }
 
@@ -505,9 +506,7 @@ int main(int argc, char **argv) {
     pthread_create(&listen, NULL, Handle_Myserver,
                    NULL);                                                               //服务端命令行监听线程
     pthread_detach(listen);
-    printf("主线程");
     int listen_socket = init_socket();//初始化
-    printf("%i", listen_socket);
     while (1) {
         //sleep(1000);
         int client_socket = MyAccept(listen_socket);//获取客户端套接字

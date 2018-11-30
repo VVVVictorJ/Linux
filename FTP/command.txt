@@ -6,5 +6,5 @@
 删除指定用户
 
 生成命令：
-gcc main.c v_check_username.c -o myftp -lpthread -lcrypt
+gcc main.c v_check_username.c link_list.c server_control.c -o myftp -lpthread -lcrypt
 ./myftp
