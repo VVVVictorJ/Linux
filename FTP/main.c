@@ -159,9 +159,11 @@ void Upload(int client_socket, struct NLM *nlm) {
     const char *a = "can't open";
 
     FILE *fd;
-    int nbyte;
+    ssize_t nbyte;
+    size_t wbyte;
     struct NLM tt;
     bzero(&tt, sizeof(BZ));
+    char *ptr;
 
     printf("get filename : [ %s ]\n", nlm->_b.content);
 
@@ -177,13 +179,23 @@ void Upload(int client_socket, struct NLM *nlm) {
         if (-1 == chmod(nlm->_b.content, S_IRUSR | S_IWUSR | S_IROTH)) {
             printf("can't set.");
         };
-        while ((nbyte = (int) read(client_socket, &tt, sizeof(tt))) > 0) {
-            if (fwrite(tt._b.content, MMAX, 1, fd) < 0) {
-                printf("Write Error!\n");
-                fclose(fd);
-                return;
+        while (nbyte = read(client_socket, &tt, sizeof(tt))) {
+            ptr = tt._b.content;
+            if (nbyte > 0) {
+                while (wbyte = fwrite(ptr, sizeof(char), MMAX, fd)) {
+                    if (wbyte == nbyte) {
+                        break;
+                    } else if (wbyte > 0) {
+                        ptr += wbyte;
+                        nbyte -= wbyte;
+                    }
+                }
+                if (0 == wbyte) {
+                    break;
+                }
             }
         }
+        close(fd);
     } else if (BIT == nlm->_n.mode) {
         if ((fd = fopen(nlm->_b.content, "rb")) <
             0) {                                                                  //ACSII---error
@@ -197,13 +209,30 @@ void Upload(int client_socket, struct NLM *nlm) {
         if (-1 == chmod(nlm->_b.content, S_IRUSR | S_IWUSR | S_IROTH)) {
             printf("can't set.");
         };
-        while ((nbyte = (int) read(client_socket, &tt, sizeof(tt))) > 0) {
-            if (fwrite(tt._b.content, MMAX, 1, fd) < 0) {
-                printf("Write Error!\n");
-                fclose(fd);
-                return;
+        while (nbyte = read(client_socket, &tt, sizeof(tt))) {
+            ptr = tt._b.content;
+            if (nbyte > 0) {
+                while (wbyte = fwrite(ptr, sizeof(char), MMAX, fd)) {
+                    if (wbyte == nbyte) {
+                        break;
+                    } else if (wbyte > 0) {
+                        ptr += wbyte;
+                        nbyte -= wbyte;
+                    }
+                }
+                if (0 == wbyte) {
+                    break;
+                }
             }
         }
+        close(fd);
+//        while ((nbyte = (int) read(client_socket, &tt, sizeof(tt))) > 0) {
+//            if (fwrite(tt._b.content, MMAX, 1, fd) < 0) {
+//                printf("Write Error!\n");
+//                fclose(fd);
+//                return;
+//            }
+//        }
     }
 }
 
@@ -214,7 +243,8 @@ void Download(int client_socket, struct NLM *nlm) {
     const char *a = "can't open";
 
     FILE *fd;
-    int nbyte;
+    size_t nbyte;
+    long file_len = 0;
     struct NLM tt;
     bzero(&tt, sizeof(BZ));
 
@@ -229,29 +259,67 @@ void Download(int client_socket, struct NLM *nlm) {
                 return;
             }
         }
-        while (0 < (nbyte = (int) fread(tt._b.content, MMAX, 1, fd))) {
-            if (write(client_socket, tt._b.content, MMAX) < 0) {
-                printf("Write Error! At commd_put 1!\n");
-                fclose(fd);
-                return;
+        fseek(fd, 0L, SEEK_END);
+        file_len = ftell(fd);
+        fseek(fd, 0L, SEEK_SET);
+
+        while (!feof(fd))                //判断文件是否结束
+        {
+            fread(tt._b.content, MMAX, 1, fd);
+            if (MMAX > file_len)                //缓冲区长度大于文件长度
+                write(client_socket, tt._b.content, MMAX);
+            else {
+                write(client_socket, tt._b.content, MMAX);
+                file_len -= MMAX;
             }
+            bzero(&tt, sizeof(BZ));         //清零缓冲区
         }
+
+        fclose(fd);
+
+
+//        while (nbyte = fread(&tt._b.content, sizeof(char), MMAX, fd)) {
+//
+//            if (write(client_socket, tt._b.content, MMAX) < 0) {
+//                perror("Write Error! At commd_put 1!");
+//                fclose(fd);
+//                return;
+//            }
+//        }
     } else if (BIT == nlm->_n.mode) {
         if ((fd = fopen(nlm->_b.content, "rb")) < 0) {                                  //BIT---error
-            printf("Open file Error!\n");
+            perror("Open file Error!");
             strcpy(tt._b.content, a);
             if (write(client_socket, &tt, sizeof(tt)) < 0) {
                 printf("Write Error!\n");
                 return;
             }
         }
-        while (0 < (nbyte = (int) fread(tt._b.content, MMAX, 1, fd))) {
-            if (write(client_socket, tt._b.content, MMAX) < 0) {
-                printf("Write Error! At commd_put 1!\n");
-                fclose(fd);
-                return;
+        fseek(fd, 0L, SEEK_END);
+        file_len = ftell(fd);
+        fseek(fd, 0L, SEEK_SET);
+
+        while (!feof(fd))                //判断文件是否结束
+        {
+            fread(tt._b.content, MMAX, 1, fd);
+            if (MMAX > file_len)                //缓冲区长度大于文件长度
+                write(client_socket, tt._b.content, MMAX);
+            else {
+                write(client_socket, tt._b.content, MMAX);
+                file_len -= MMAX;
             }
+            bzero(&tt, sizeof(BZ));         //清零缓冲区
         }
+
+        fclose(fd);
+        return;
+//        while (0 < (nbyte = (int) fread(tt._b.content, sizeof(char), MMAX, fd))) {
+//            if (write(client_socket, tt._b.content, MMAX) < 0) {
+//                printf("Write Error! At commd_put 1!\n");
+//                fclose(fd);
+//                return;
+//            }
+//        }
     }
 
 
