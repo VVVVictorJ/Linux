@@ -5,7 +5,6 @@
 #ifndef FTP_LINK_LIST_H
 #define FTP_LINK_LIST_H
 
-#include <zconf.h>
 #include <malloc.h>
 
 typedef struct LNode {

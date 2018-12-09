@@ -8,3 +8,7 @@
 生成命令：
 gcc main.c v_check_username.c link_list.c server_control.c -o myftp -lpthread -lcrypt
 ./myftp
+gcc -c client.c
+gcc -o client client.o
+用户名:ftpuser
+密码:123

@@ -433,10 +433,12 @@ int main(int argc, char **argv) {
         int count1;
         int count2;
         while (1) {                                             //登录
+        printf("%s\n",psw._b.content);
+        printf("%i\n",psw._n.mode);
 //        if(psw._n.status==LOGIN) {
-            if (strcmp(username, "sdzhj") == 0 && strcmp(password, "123") == 0/*psw._b.content == 999*/)
-                break;                   //判断是否已经登录成功
-            if (psw._b.content == 777) {
+            if (psw._n.mode == 999)
+                break;                                         //判断是否已经登录成功
+            if (psw._n.mode == 777) {
                 printf("用户名密码不正确\n");
                 logout();
             }
@@ -471,6 +473,7 @@ int main(int argc, char **argv) {
             psw._n.status = LOGIN;
             strcpy(psw._m.username, username);
             strcpy(psw._m.password, password);
+            printf("1");
             write(client_socket, &psw, sizeof(psw));     //消息写过去，等待回复，例如什么用户不存在，密码错误
             read(client_socket, &psw, sizeof(psw));      //读取来自服务器的返回的消息，进行客户端屏幕打印
         }
