@@ -5,8 +5,7 @@
 #include "v_check_username.h"
 
 int v_check_n_p(const char *username, const char *passwd) {
-    if (geteuid() !=
-        0)                                                                                                 //sure authority is root
+    if (geteuid() != 0)                                                                                                 //sure authority is root
     {
 
         fprintf(stderr, "must be setuid root");
@@ -46,8 +45,7 @@ int v_check_n_p(const char *username, const char *passwd) {
         3)                                                                                                             //risk control
         perror("file error or user cannot use.");
 
-    if (0 == strcmp(shd->sp_pwdp, crypt(passwd,
-                                        salt))) {                                                                    //successful access
+    if (0 == strcmp(shd->sp_pwdp, crypt(passwd, salt))) {                                                                    //successful access
         return 0;
     } else {
         return -1;
